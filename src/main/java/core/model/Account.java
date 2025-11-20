@@ -9,6 +9,7 @@ public class Account {
     private Long id;
     private String email;
     private String passwordHash;
+    private String plainPassword; // For hMailServer authentication in GUI_REMOTE mode
     private String smtpHost;
     private int smtpPort;
     private String imapHost;
@@ -40,6 +41,9 @@ public class Account {
     
     public String getPasswordHash() { return passwordHash; }
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+    
+    public String getPlainPassword() { return plainPassword; }
+    public void setPlainPassword(String plainPassword) { this.plainPassword = plainPassword; }
     
     public String getSmtpHost() { return smtpHost; }
     public void setSmtpHost(String smtpHost) { this.smtpHost = smtpHost; }

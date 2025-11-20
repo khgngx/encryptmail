@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     id BIGSERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
+    plain_password VARCHAR(255), -- For hMailServer authentication in GUI_REMOTE mode
     smtp_host VARCHAR(255) NOT NULL DEFAULT 'localhost',
     smtp_port INTEGER NOT NULL DEFAULT 25,
     imap_host VARCHAR(255) NOT NULL DEFAULT 'localhost',
@@ -107,3 +108,5 @@ CREATE TRIGGER update_ui_settings_updated_at
     BEFORE UPDATE ON ui_settings 
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
+-- Xóa accounts cũ (không có plainPassword)
+DELETE FROM accounts WHERE email IN ('khang@gmail.com', 'dat123@gmail.com');

@@ -1,4 +1,6 @@
 @echo off
+set SCRIPT_DIR=%~dp0
+cd /d "%SCRIPT_DIR%.."
 echo === SECURE MAIL CLIENT DEBUG MODE ===
 echo.
 echo This will run the application with detailed console logging

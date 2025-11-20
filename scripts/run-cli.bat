@@ -1,4 +1,6 @@
 @echo off
+set SCRIPT_DIR=%~dp0
+cd /d "%SCRIPT_DIR%.."
 echo === Starting Secure Mail Client (CLI Mode) ===
 echo.
 echo Mode: Command Line Interface

@@ -1,4 +1,6 @@
 @echo off
+set SCRIPT_DIR=%~dp0
+cd /d "%SCRIPT_DIR%.."
 echo === SECURE MAIL CLIENT - DATABASE SETUP ===
 echo.
 echo This script will help you set up the PostgreSQL database

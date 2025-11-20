@@ -53,7 +53,7 @@ public class DataMigrationUtil {
      * Migrate accounts from accounts.dat to database
      */
     private static void migrateAccounts(ServiceRegistry registry) {
-        Path accountsFile = Paths.get("accounts.dat");
+        Path accountsFile = Paths.get("data/accounts.dat");
         if (!Files.exists(accountsFile)) {
             logger.info("No accounts.dat file found, skipping account migration");
             return;
@@ -113,7 +113,7 @@ public class DataMigrationUtil {
      * Migrate mail history from mail_history.dat to database
      */
     private static void migrateMailHistory(ServiceRegistry registry) {
-        Path historyFile = Paths.get("mail_history.dat");
+        Path historyFile = Paths.get("data/mail_history.dat");
         if (!Files.exists(historyFile)) {
             logger.info("No mail_history.dat file found, skipping mail history migration");
             return;
@@ -203,15 +203,15 @@ public class DataMigrationUtil {
             String timestamp = java.time.LocalDateTime.now()
                 .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
             
-            Path accountsFile = Paths.get("accounts.dat");
+            Path accountsFile = Paths.get("data/accounts.dat");
             if (Files.exists(accountsFile)) {
-                Files.move(accountsFile, Paths.get("accounts_backup_" + timestamp + ".dat"));
+                Files.move(accountsFile, Paths.get("data/accounts_backup_" + timestamp + ".dat"));
                 logger.info("Backed up accounts.dat");
             }
             
-            Path historyFile = Paths.get("mail_history.dat");
+            Path historyFile = Paths.get("data/mail_history.dat");
             if (Files.exists(historyFile)) {
-                Files.move(historyFile, Paths.get("mail_history_backup_" + timestamp + ".dat"));
+                Files.move(historyFile, Paths.get("data/mail_history_backup_" + timestamp + ".dat"));
                 logger.info("Backed up mail_history.dat");
             }
             

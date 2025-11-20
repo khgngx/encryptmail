@@ -27,6 +27,9 @@ import ui.modern.components.ModernEmailViewer;
 import ui.modern.components.ModernSidebar;
 import ui.theme.ThemeManager;
 
+import jakarta.mail.Message;
+import java.time.ZoneId;
+
 /**
  * Modern main application with SaaS-like design
  */
@@ -38,6 +41,7 @@ public class ModernMainApplication extends JFrame {
     private MailHistoryService mailHistoryService;
     private ThemeManager themeManager;
     private String currentUser;
+    private String currentPassword;
     private Long currentAccountId;
     
     // Modern UI Components
@@ -50,8 +54,9 @@ public class ModernMainApplication extends JFrame {
     // Current state
     private String currentFolder = "inbox";
     
-    public ModernMainApplication(String userEmail) {
+    public ModernMainApplication(String userEmail, String password) {
         this.currentUser = userEmail;
+        this.currentPassword = password;
         this.serviceRegistry = ServiceRegistry.getInstance();
         this.mailService = serviceRegistry.getMailService();
         this.themeManager = ThemeManager.getInstance();
@@ -82,6 +87,8 @@ public class ModernMainApplication extends JFrame {
         setSize(1400, 900);
         setLocationRelativeTo(null);
         setMinimumSize(new Dimension(1200, 700));
+        
+        syncInbox();
     }
     
     private void initializeComponents() {
@@ -91,7 +98,12 @@ public class ModernMainApplication extends JFrame {
             public void onFolderSelected(String folder) {
                 currentFolder = folder;
                 sidebar.setActiveFolder(folder);
-                loadEmails(folder);
+                if ("inbox".equals(folder)) {
+                    // For Inbox, always re-sync from server to ensure latest mails are shown
+                    syncInbox();
+                } else {
+                    loadEmails(folder);
+                }
             }
             
             @Override
@@ -180,9 +192,17 @@ public class ModernMainApplication extends JFrame {
         leftPanel.add(titleLabel, BorderLayout.NORTH);
         leftPanel.add(userLabel, BorderLayout.SOUTH);
         
-        // Right panel with theme toggle
-        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        // Right panel with theme toggle and actions
+        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         rightPanel.setOpaque(false);
+
+        // Reset Inbox button - re-sync emails from server and reload inbox
+        javax.swing.JButton resetInboxButton = new javax.swing.JButton("Reset Inbox");
+        resetInboxButton.setFont(ThemeManager.Fonts.BUTTON);
+        resetInboxButton.setFocusPainted(false);
+        resetInboxButton.addActionListener(e -> syncInbox());
+
+        rightPanel.add(resetInboxButton);
         rightPanel.add(themeToggleButton);
         
         headerPanel.add(leftPanel, BorderLayout.WEST);
@@ -407,5 +427,76 @@ public class ModernMainApplication extends JFrame {
             return mailService.testConnection(currentUser, "");
         }
         return false;
+    }
+    
+    private void syncInbox() {
+        if (mailService == null || mailHistoryService == null || currentAccountId == null) return;
+        
+        new Thread(() -> {
+            try {
+                // Load existing inbox emails to avoid duplicates
+                java.util.Set<String> existingIds = new java.util.HashSet<>();
+                for (Email existing : mailHistoryService.getEmailsByFolder(currentAccountId, "inbox")) {
+                    if (existing.getServerMessageId() != null) {
+                        existingIds.add(existing.getServerMessageId());
+                    }
+                }
+                
+                // Ưu tiên dùng mật khẩu người dùng vừa đăng nhập thành công
+                String userPassword = currentPassword != null ? currentPassword : "";
+
+                // Nếu vì lý do nào đó mật khẩu hiện tại rỗng, thử fallback sang plainPassword trong DB
+                if (userPassword.isEmpty()) {
+                    try {
+                        var accountOpt = serviceRegistry.getAccountRepository().findByEmail(currentUser);
+                        if (accountOpt.isPresent() && accountOpt.get().getPlainPassword() != null) {
+                            userPassword = accountOpt.get().getPlainPassword();
+                        }
+                    } catch (Exception ex) {
+                        logger.warning("Failed to load account for inbox sync: " + ex.getMessage());
+                    }
+                }
+
+                List<Message> messages = mailService.fetchInbox(currentUser, userPassword);
+                for (Message msg : messages) {
+                    try {
+                        String[] messageIdHeaders = msg.getHeader("Message-ID");
+                        String messageId;
+                        if (messageIdHeaders != null && messageIdHeaders.length > 0 && messageIdHeaders[0] != null) {
+                            messageId = messageIdHeaders[0];
+                        } else {
+                            // Fallback ID ổn định dựa trên from + subject + sentDate
+                            String from = msg.getFrom() != null && msg.getFrom().length > 0 ? msg.getFrom()[0].toString() : "";
+                            String subject = msg.getSubject() != null ? msg.getSubject() : "";
+                            java.util.Date sent = msg.getSentDate();
+                            long sentTime = sent != null ? sent.getTime() : 0L;
+                            messageId = from + "|" + subject + "|" + sentTime;
+                        }
+                        
+                        // Skip if already exists
+                        if (existingIds.contains(messageId)) {
+                            continue;
+                        }
+                        
+                        Email email = new Email(currentAccountId, "inbox", 
+                                            msg.getFrom()[0].toString(), 
+                                            currentUser,
+                                            msg.getSubject(),
+                                            msg.getContent().toString());
+                        email.setServerMessageId(messageId);
+                        email.setCreatedAt(msg.getSentDate().toInstant()
+                                         .atZone(ZoneId.systemDefault())
+                                         .toLocalDateTime());
+                        mailHistoryService.saveEmail(email);
+                        existingIds.add(messageId);
+                    } catch (Exception e) {
+                        logger.warning("Error processing message: " + e.getMessage());
+                    }
+                }
+                SwingUtilities.invokeLater(() -> loadEmails("inbox"));
+            } catch (Exception e) {
+                logger.severe("Failed to sync inbox: " + e.getMessage());
+            }
+        }).start();
     }
 }

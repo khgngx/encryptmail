@@ -18,7 +18,7 @@ import java.util.logging.Logger;
  */
 public class MailHistoryManager {
     private static final Logger logger = Logger.getLogger(MailHistoryManager.class.getName());
-    private static final String HISTORY_FILE = "mail_history.dat";
+    private static final String HISTORY_FILE = "data/mail_history.dat";
     
     private static final Map<String, List<MailRecord>> folderHistory = new HashMap<>();
     

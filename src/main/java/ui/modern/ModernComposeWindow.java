@@ -255,9 +255,19 @@ public class ModernComposeWindow extends JDialog {
             try {
                 boolean success = false;
                 
+                // Lấy plainPassword từ database để authenticate với hMailServer
+                String userPassword = "";
+                var accountOpt = serviceRegistry.getAccountRepository().findByEmail(currentUser);
+                if (accountOpt.isPresent()) {
+                    userPassword = accountOpt.get().getPlainPassword();
+                    if (userPassword == null) {
+                        userPassword = ""; // Fallback nếu không có plainPassword
+                    }
+                }
+                
                 if ((encrypt || sign) && secureMailService != null) {
                     // Send secure email
-                    secureMailService.sendSecureMail(currentUser, "", to, subject, body, encrypt, sign);
+                    secureMailService.sendSecureMail(currentUser, userPassword, to, subject, body, encrypt, sign);
                     success = true;
                     
                     String securityInfo = "";
@@ -267,7 +277,7 @@ public class ModernComposeWindow extends JDialog {
                              ThemeManager.Colors.getSuccessColor());
                 } else {
                     // Send regular email
-                    mailService.sendMail(currentUser, "", to, subject, body);
+                    mailService.sendMail(currentUser, userPassword, to, subject, body);
                     success = true;
                     showStatus("Email sent successfully!", ThemeManager.Colors.getSuccessColor());
                 }

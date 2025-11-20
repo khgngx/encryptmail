@@ -39,11 +39,21 @@ public class SmtpImapMailService implements MailService {
         
         // Configure authentication and security based on mode
         if (config.isGuiRemoteMode()) {
-            // For remote server, use TLS/SSL
+            // For hMailServer, configure properly
             props.put("mail.smtp.auth", "true");
-            props.put("mail.smtp.starttls.enable", "true");
-            if (smtpPort == 465) {
+            props.put("mail.smtp.connectiontimeout", "10000");
+            props.put("mail.smtp.timeout", "10000");
+            
+            if (smtpPort == 587) {
+                // Port 587 - STARTTLS
+                props.put("mail.smtp.starttls.enable", "true");
+                props.put("mail.smtp.starttls.required", "false"); // hMailServer có thể không yêu cầu TLS
+            } else if (smtpPort == 465) {
+                // Port 465 - SSL
                 props.put("mail.smtp.ssl.enable", "true");
+            } else {
+                // Port 25 - Plain hoặc STARTTLS optional
+                props.put("mail.smtp.starttls.enable", "false");
             }
         } else if (config.isCliLocalMode()) {
             // For local server, minimal security
@@ -74,47 +84,71 @@ public class SmtpImapMailService implements MailService {
         Transport.send(message);
         logger.info(() -> "Mail sent: " + from + " -> " + to + " [" + subject + "]");
     }
-    
+
     @Override
     public List<Message> fetchInbox(String email, String password) throws Exception {
         Properties props = new Properties();
-        
-        // Configure IMAP properties based on app mode
+
         String imapHost = config.getImapHost();
         int imapPort = config.getImapPort();
-        
+
         props.put("mail.imap.host", imapHost);
         props.put("mail.imap.port", String.valueOf(imapPort));
-        
-        // Configure security based on mode
+
+        // Security config
         if (config.isGuiRemoteMode()) {
             props.put("mail.imap.ssl.enable", "true");
         } else {
             props.put("mail.imap.ssl.enable", "false");
         }
-        
+
         Session session = Session.getInstance(props);
-        
-        try (Store store = session.getStore("imap")) {
-            if (config.isGuiRemoteMode() || config.isCliLocalMode()) {
-                // Use authentication for real servers
-                store.connect(imapHost, email, password);
-            } else {
-                // Demo mode - connect without auth
-                store.connect(imapHost, email, password);
-            }
-            
-            try (Folder inbox = store.getFolder("INBOX")) {
-                inbox.open(Folder.READ_ONLY);
-                Message[] messages = inbox.getMessages();
-                
-                List<Message> result = new ArrayList<>();
-                java.util.Collections.addAll(result, messages);
-                
-                logger.info(() -> "Fetched " + result.size() + " messages from " + email);
-                return result;
+        Store store = session.getStore("imap");
+
+        // Kết nối
+        store.connect(imapHost, email, password);
+
+        List<Message> result = new ArrayList<>();
+
+        // === ĐOẠN CODE MỚI: QUÉT TẤT CẢ CÁC THƯ MỤC ===
+        System.out.println("--- BẮT ĐẦU QUÉT TÌM THƯ CHO: " + email + " ---");
+
+        // Lấy danh sách tất cả thư mục trên server
+        Folder defaultFolder = store.getDefaultFolder();
+        Folder[] allFolders = defaultFolder.list("*");
+
+        for (Folder folder : allFolders) {
+            try {
+                // Mở từng thư mục để xem (Mở chế độ chỉ đọc)
+                if ((folder.getType() & Folder.HOLDS_MESSAGES) != 0) {
+                    folder.open(Folder.READ_ONLY);
+                    int messageCount = folder.getMessageCount();
+                    System.out.println("   + Thư mục [" + folder.getFullName() + "] có: " + messageCount + " lá thư.");
+
+                    // Nếu có thư, lấy hết ra để xem
+                    if (messageCount > 0) {
+                        Message[] msgs = folder.getMessages();
+                        // Nếu đây là INBOX thì thêm vào kết quả trả về cho giao diện
+                        if (folder.getFullName().equalsIgnoreCase("INBOX")) {
+                            java.util.Collections.addAll(result, msgs);
+                        } else {
+                            // Nếu thư nằm ở Junk hay chỗ khác, in ra Console để biết đường tìm
+                            for (Message m : msgs) {
+                                System.out.println("     -> TÌM THẤY THƯ LẠC ở [" + folder.getFullName() + "]: " + m.getSubject());
+                            }
+                        }
+                    }
+                    // Không đóng folder ngay vì Message object cần folder mở để đọc nội dung (Lazy load)
+                    // Nhưng trong phạm vi bài này ta đóng để tránh lỗi connection limit nếu mở quá nhiều
+                    // folder.close(false);
+                }
+            } catch (Exception ex) {
+                System.out.println("   ! Không đọc được thư mục " + folder.getFullName() + ": " + ex.getMessage());
             }
         }
+        System.out.println("--- KẾT THÚC QUÉT ---");
+
+        return result;
     }
     
     @Override

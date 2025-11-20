@@ -29,22 +29,44 @@ public class PgAccountRepository implements AccountRepository {
     }
     
     private Account insert(Account account) {
-        String sql = """
-            INSERT INTO accounts (email, password_hash, smtp_host, smtp_port, imap_host, imap_port, active)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            RETURNING id, created_at
-            """;
+        // Kiểm tra xem table có column plain_password không
+        boolean hasPlainPasswordColumn = checkPlainPasswordColumn();
+        
+        String sql;
+        if (hasPlainPasswordColumn) {
+            sql = """
+                INSERT INTO accounts (email, password_hash, plain_password, smtp_host, smtp_port, imap_host, imap_port, active)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                RETURNING id, created_at
+                """;
+        } else {
+            sql = """
+                INSERT INTO accounts (email, password_hash, smtp_host, smtp_port, imap_host, imap_port, active)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                RETURNING id, created_at
+                """;
+        }
         
         try (Connection conn = DbConnectionManager.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
             stmt.setString(1, account.getEmail());
             stmt.setString(2, account.getPasswordHash());
-            stmt.setString(3, account.getSmtpHost());
-            stmt.setInt(4, account.getSmtpPort());
-            stmt.setString(5, account.getImapHost());
-            stmt.setInt(6, account.getImapPort());
-            stmt.setBoolean(7, account.isActive());
+            
+            if (hasPlainPasswordColumn) {
+                stmt.setString(3, account.getPlainPassword());
+                stmt.setString(4, account.getSmtpHost());
+                stmt.setInt(5, account.getSmtpPort());
+                stmt.setString(6, account.getImapHost());
+                stmt.setInt(7, account.getImapPort());
+                stmt.setBoolean(8, account.isActive());
+            } else {
+                stmt.setString(3, account.getSmtpHost());
+                stmt.setInt(4, account.getSmtpPort());
+                stmt.setString(5, account.getImapHost());
+                stmt.setInt(6, account.getImapPort());
+                stmt.setBoolean(7, account.isActive());
+            }
             
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -230,6 +252,15 @@ public class PgAccountRepository implements AccountRepository {
         account.setId(rs.getLong("id"));
         account.setEmail(rs.getString("email"));
         account.setPasswordHash(rs.getString("password_hash"));
+        
+        // Safely get plain_password (có thể column chưa tồn tại)
+        try {
+            account.setPlainPassword(rs.getString("plain_password"));
+        } catch (SQLException e) {
+            // Column plain_password chưa tồn tại, set null
+            account.setPlainPassword(null);
+        }
+        
         account.setSmtpHost(rs.getString("smtp_host"));
         account.setSmtpPort(rs.getInt("smtp_port"));
         account.setImapHost(rs.getString("imap_host"));
@@ -247,5 +278,24 @@ public class PgAccountRepository implements AccountRepository {
         }
         
         return account;
+    }
+    
+    private boolean checkPlainPasswordColumn() {
+        String sql = """
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'accounts' AND column_name = 'plain_password'
+            """;
+        
+        try (Connection conn = DbConnectionManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            
+            return rs.next(); // Trả về true nếu có column plain_password
+            
+        } catch (SQLException e) {
+            logger.warning("Failed to check plain_password column: " + e.getMessage());
+            return false; // Nếu lỗi, giả sử không có column
+        }
     }
 }

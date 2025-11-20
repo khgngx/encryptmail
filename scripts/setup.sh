@@ -5,6 +5,9 @@
 
 set -e
 
+# Always run from project root (one level above scripts directory)
+cd "$(dirname "$0")/.."
+
 echo "=== Secure Mail Client Setup ==="
 
 # Function to check if command exists

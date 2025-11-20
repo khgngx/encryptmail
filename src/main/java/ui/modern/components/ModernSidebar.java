@@ -191,11 +191,11 @@ public class ModernSidebar extends JPanel {
         private void setupContent() {
             setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
             
-            // Left side: label only (no icon)
+            // Left side: icon + label
             JPanel leftPanel = new JPanel(new BorderLayout());
             leftPanel.setOpaque(false);
             
-            JLabel textLabel = new JLabel(label);
+            JLabel textLabel = new JLabel(icon != null ? icon + "  " + label : label);
             textLabel.setFont(ThemeManager.Fonts.BODY_MEDIUM);
             
             leftPanel.add(textLabel, BorderLayout.CENTER);

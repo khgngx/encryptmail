@@ -1,4 +1,6 @@
 @echo off
+set SCRIPT_DIR=%~dp0
+cd /d "%SCRIPT_DIR%.."
 echo === Compiling Secure Mail Client ===
 
 REM Copy resources

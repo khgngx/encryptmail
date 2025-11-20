@@ -108,7 +108,8 @@ public class MainApp {
                     public void onLoginSuccess(String email, String password) {
                         System.out.println("   - LOGIN SUCCESS: " + email);
                         loginFrame.dispose();
-                        showModernMainApplication(email);
+                        // Truyền cả email và password sang ModernMainApplication để sync IMAP với hMail
+                        showModernMainApplication(email, password);
                     }
 
                     @Override
@@ -129,12 +130,12 @@ public class MainApp {
         });
     }
 
-    private static void showModernMainApplication(String email) {
+    private static void showModernMainApplication(String email, String password) {
         System.out.println("   - MAIN APP: Creating main application for user: " + email);
         SwingUtilities.invokeLater(() -> {
             try {
                 System.out.println("   - MAIN APP EDT: Initializing ModernMainApplication...");
-                ModernMainApplication modernApp = new ModernMainApplication(email);
+                ModernMainApplication modernApp = new ModernMainApplication(email, password);
                 System.out.println("   - MAIN APP EDT: ModernMainApplication created successfully");
                 
                 System.out.println("   - MAIN APP EDT: Making application visible...");

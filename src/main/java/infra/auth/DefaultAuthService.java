@@ -46,7 +46,22 @@ public class DefaultAuthService implements AuthService {
             return Optional.empty();
         }
         
-        if (verifyPassword(password, account.getPasswordHash())) {
+        // Trong GUI_REMOTE mode, thử cả plainPassword và hashedPassword
+        boolean passwordValid = false;
+        
+        if (config.isGuiRemoteMode() && account.getPlainPassword() != null) {
+            // Thử plainPassword trước (cho hMailServer accounts)
+            passwordValid = password.equals(account.getPlainPassword());
+            logger.info("Plain password check: " + passwordValid);
+        }
+        
+        if (!passwordValid) {
+            // Thử hashedPassword (cho security)
+            passwordValid = verifyPassword(password, account.getPasswordHash());
+            logger.info("Hashed password check: " + passwordValid);
+        }
+        
+        if (passwordValid) {
             // Update last login time
             accountRepository.updateLastLogin(account.getId());
             logger.info("Successful login: " + email);
@@ -72,6 +87,10 @@ public class DefaultAuthService implements AuthService {
             throw new IllegalArgumentException("Password must be at least 6 characters");
         }
         
+        // TODO: Có thể thêm kiểm tra hMailServer connection sau khi đăng ký thành công
+        // Hiện tại bỏ qua để cho phép đăng ký offline, sẽ kiểm tra khi gửi mail
+        logger.info("Registering account without hMailServer verification: " + email);
+        
         String hashedPassword = hashPassword(password);
         
         Account account = new Account(
@@ -82,6 +101,11 @@ public class DefaultAuthService implements AuthService {
             imapHost,
             imapPort
         );
+        
+        // Trong GUI_REMOTE mode, lưu plainPassword để authenticate với hMailServer
+        if (config.isGuiRemoteMode()) {
+            account.setPlainPassword(password);
+        }
         
         Account savedAccount = accountRepository.save(account);
         logger.info("Account registered: " + email);

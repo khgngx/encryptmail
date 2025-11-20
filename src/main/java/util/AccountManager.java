@@ -17,7 +17,7 @@ import java.util.regex.Pattern;
  */
 public class AccountManager {
     private static final Logger logger = Logger.getLogger(AccountManager.class.getName());
-    private static final String ACCOUNTS_FILE = "accounts.dat";
+    private static final String ACCOUNTS_FILE = "data/accounts.dat";
     private static final String EMAIL_PATTERN = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$";
     private static final Pattern emailPattern = Pattern.compile(EMAIL_PATTERN);
     
