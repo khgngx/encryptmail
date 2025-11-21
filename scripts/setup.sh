@@ -66,6 +66,9 @@ setup_postgresql() {
 CREATE DATABASE securemail;
 CREATE USER securemail WITH PASSWORD 'secret';
 GRANT ALL PRIVILEGES ON DATABASE securemail TO securemail;
+\connect securemail
+GRANT USAGE, CREATE ON SCHEMA public TO securemail;
+ALTER SCHEMA public OWNER TO securemail;
 \q
 EOF
     

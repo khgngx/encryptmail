@@ -1,5 +1,6 @@
 package ui.cli;
 
+import java.nio.file.Path;
 import java.util.Scanner;
 import java.util.logging.Logger;
 
@@ -9,6 +10,7 @@ import core.service.KeyService;
 import core.service.MailService;
 import core.service.SecureMailService;
 import jakarta.mail.Message;
+import util.MailExportUtil;
 
 /**
  * Command Line Interface for the mail client
@@ -94,6 +96,13 @@ public class CliMain {
             System.out.println("Login successful!");
             return true;
         } else {
+            System.out.println("Mail server connection test failed.");
+            System.out.print("Continue in offline mode? (y/n): ");
+            String choice = scanner.nextLine().trim().toLowerCase();
+            if (choice.startsWith("y")) {
+                System.out.println("Continuing in offline mode. Some features may be unavailable.");
+                return true;
+            }
             System.out.println("Login failed. Please check your credentials and server configuration.");
             return false;
         }
@@ -231,10 +240,14 @@ public class CliMain {
         System.out.print("Subject: ");
         String subject = scanner.nextLine();
         
-        System.out.println("Body (type 'END' on a new line to finish):");
+        System.out.println("Body (type 'done' on a new line to finish):");
         StringBuilder body = new StringBuilder();
         String line;
-        while (!(line = scanner.nextLine()).equals("END")) {
+        while (true) {
+            line = scanner.nextLine();
+            if ("done".equalsIgnoreCase(line.trim())) {
+                break;
+            }
             body.append(line).append("\n");
         }
         
@@ -252,13 +265,15 @@ public class CliMain {
                 try {
                     secureMailService.sendSecureMail(currentUser, currentPassword, to, subject, finalBody, encrypt, sign);
                     System.out.println("Secure mail sent successfully!");
-                    if (encrypt) System.out.println("✓ Message was encrypted");
-                    if (sign) System.out.println("✓ Message was digitally signed");
+                    if (encrypt) System.out.println("\u2713 Message was encrypted");
+                    if (sign) System.out.println("\u2713 Message was digitally signed");
+                    exportMailLog(to, subject, finalBody, encrypt, sign);
                 } catch (Exception e) {
                     System.out.println("Error sending secure mail: " + e.getMessage());
                     System.out.println("Falling back to plain text...");
                     mailService.sendMail(currentUser, currentPassword, to, subject, finalBody);
                     System.out.println("Plain mail sent successfully!");
+                    exportMailLog(to, subject, finalBody, false, false);
                 }
             } else {
                 if ((encrypt || sign) && secureMailService == null) {
@@ -267,11 +282,48 @@ public class CliMain {
                 }
                 mailService.sendMail(currentUser, currentPassword, to, subject, finalBody);
                 System.out.println("Mail sent successfully!");
+                exportMailLog(to, subject, finalBody, false, false);
             }
             
         } catch (Exception e) {
             System.out.println("Error sending mail: " + e.getMessage());
             logger.severe("Error sending mail: " + e.getMessage());
+        }
+    }
+
+    private void exportMailLog(String to, String subject, String body, boolean encrypt, boolean sign) {
+        String senderKey = null;
+        String recipientKey = null;
+
+        if (keyService != null) {
+            try {
+                senderKey = keyService.exportPublicKey(currentUser);
+            } catch (Exception e) {
+                logger.warning("Failed to export sender public key: " + e.getMessage());
+            }
+
+            try {
+                recipientKey = keyService.exportPublicKey(to);
+            } catch (Exception e) {
+                logger.warning("Failed to export recipient public key: " + e.getMessage());
+            }
+        }
+
+        Path exportPath = MailExportUtil.exportMail(
+            currentUser,
+            to,
+            subject,
+            body,
+            senderKey,
+            recipientKey,
+            encrypt,
+            sign
+        );
+
+        if (exportPath != null) {
+            System.out.println("Mail export saved to: " + exportPath.toAbsolutePath());
+        } else {
+            System.out.println("Failed to export mail details to file. Check logs for more information.");
         }
     }
     

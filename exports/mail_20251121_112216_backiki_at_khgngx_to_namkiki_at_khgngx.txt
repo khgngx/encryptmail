@@ -1,0 +1,12 @@
+Sender: backiki@khgngx
+Recipient: namkiki@khgngx
+SentAt: 2025-11-21 11:22:16
+Encrypted: NO
+Signed: NO
+SenderPublicKey: N/A
+RecipientPublicKey: MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoZ5y28EfANr2BzuNgQq0K7W6n1XwRpiqOBTvOjOn4iBssTgqIDRKuSVUi5fLhKLWtRUtuaIwiXrhC1c3Qcy+daaEmG/r8tjmEaZKpXIzJ1nZGfOJYTfSBSwHV+dR66Z6TgsFz0zOmNoFN0BuoaXUebr1tGIcmGsrlN85MDnBpAx+lSymhnm0sFjZpDSXSgj8rg1g0omQ+BVYAL7EpUvV6IibkYMOgYXKoQPkFtXSNLPH5uItHt1yu6EV7EoqfbHtDIRdwnTCN0oMaxbtV5Wi3wtMzmVJ8I9TFfvcfDCkn1nwsHKd1EnOuZICyq74/9JQtsTkYBEd5RNGgeVgMge2VwIDAQAB
+Subject: blelble
+Body:
+wdawdawdawd
+awdawd
+

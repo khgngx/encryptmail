@@ -106,7 +106,14 @@ public class SmtpImapMailService implements MailService {
         Store store = session.getStore("imap");
 
         // Kết nối
-        store.connect(imapHost, email, password);
+        String imapUser = email;
+        if (config.isCliLocalMode()) {
+            int atIndex = email.indexOf('@');
+            if (atIndex > 0) {
+                imapUser = email.substring(0, atIndex);
+            }
+        }
+        store.connect(imapHost, imapUser, password);
 
         List<Message> result = new ArrayList<>();
 
@@ -159,6 +166,11 @@ public class SmtpImapMailService implements MailService {
             smtpProps.put("mail.smtp.host", config.getSmtpHost());
             smtpProps.put("mail.smtp.port", String.valueOf(config.getSmtpPort()));
             smtpProps.put("mail.smtp.auth", config.isGuiRemoteMode() ? "true" : "false");
+
+            // Use shorter timeouts to avoid long hangs during CLI login
+            String smtpTimeout = config.isCliLocalMode() ? "2000" : "5000"; // ms
+            smtpProps.put("mail.smtp.connectiontimeout", smtpTimeout);
+            smtpProps.put("mail.smtp.timeout", smtpTimeout);
             
             Session smtpSession = Session.getInstance(smtpProps);
             Transport transport = smtpSession.getTransport("smtp");
@@ -174,15 +186,23 @@ public class SmtpImapMailService implements MailService {
             Properties imapProps = new Properties();
             imapProps.put("mail.imap.host", config.getImapHost());
             imapProps.put("mail.imap.port", String.valueOf(config.getImapPort()));
+
+            String imapTimeout = config.isCliLocalMode() ? "2000" : "5000"; // ms
+            imapProps.put("mail.imap.connectiontimeout", imapTimeout);
+            imapProps.put("mail.imap.timeout", imapTimeout);
             
             Session imapSession = Session.getInstance(imapProps);
             Store store = imapSession.getStore("imap");
             
-            if (config.isGuiRemoteMode() || config.isCliLocalMode()) {
-                store.connect(config.getImapHost(), email, password);
-            } else {
-                store.connect(config.getImapHost(), email, password);
+            String imapUser = email;
+            if (config.isCliLocalMode()) {
+                int atIndex = email.indexOf('@');
+                if (atIndex > 0) {
+                    imapUser = email.substring(0, atIndex);
+                }
             }
+
+            store.connect(config.getImapHost(), imapUser, password);
             store.close();
             
             logger.info("Mail server connection test successful for: " + email);
